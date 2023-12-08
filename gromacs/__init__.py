@@ -364,3 +364,5 @@ def enable_gromacs_warnings(categories=None):
 
     """
     filter_gromacs_warnings("always", categories=categories)
+
+from .k8s import MDrunnerK8s
