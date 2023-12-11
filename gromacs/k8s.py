@@ -32,7 +32,7 @@ class MDrunnerK8s(MDrunner):
 		self.jobname = "gmx-" + str(uuid.uuid4())
 
 	# start K8s job
-	def prehook(self,ncores=1,gpus=0,gputype='mig-1g.10gb',mem=4):
+	def prehook(self,cores=1,gpus=0,gputype='mig-1g.10gb',mem=4):
 		job = f"""\
 apiVersion: batch/v1
 kind: Job
@@ -67,14 +67,14 @@ spec:
 
         env:
         - name: 'OMP_NUM_THREADS'
-          value: '{ncores}'
+          value: '{cores}'
         resources:
           requests:
-            cpu: '{ncores}'
+            cpu: '{cores}'
             memory: {mem}Gi
             nvidia.com/{gputype}: {gpus}
           limits:
-            cpu: '{ncores}'
+            cpu: '{cores}'
             memory: {mem}Gi
             nvidia.com/{gputype}: {gpus}
         volumeMounts:
