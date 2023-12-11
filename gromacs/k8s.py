@@ -41,6 +41,9 @@ metadata:
 spec:
   backoffLimit: 0
   template:
+    metadata:
+      labels:
+        job: {self.jobname}
     spec:
       restartPolicy: Never
       containers:
@@ -86,7 +89,7 @@ spec:
 			y.write(job)
 			y.flush()
 			os.system(f'kubectl apply -f {y.name}')
-			os.system(f'kubectl wait --for=condition=ready job/{self.jobname}')
+			os.system(f'kubectl wait --for=condition=ready pod -l job={self.jobname}')
 
 
 
