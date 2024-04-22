@@ -32,7 +32,12 @@ class MDrunnerK8s(MDrunner):
 		self.jobname = "gmx-" + str(uuid.uuid4())
 
 	# start K8s job
-	def prehook(self,cores=1,gpus=0,gputype='mig-1g.10gb',mem=4):
+	def prehook(self,cores=None,mpi=1,omp=1,gpus=0,gputype='mig-1g.10gb',mem=4):
+		if cores is not None and cores != mpi * omp:
+			raise ValueError(f'cores ({cores}) != mpi ({mpi}) * omp ({omp})')
+		if cores is None:
+			cores = mpi * omp
+
 		job = f"""\
 apiVersion: batch/v1
 kind: Job
@@ -67,7 +72,7 @@ spec:
 
         env:
         - name: 'OMP_NUM_THREADS'
-          value: '{cores}'
+          value: '{omp}'
         resources:
           requests:
             cpu: '{cores}'
