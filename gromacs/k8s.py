@@ -32,7 +32,7 @@ class MDrunnerK8s(MDrunner):
 		self.jobname = "gmx-" + str(uuid.uuid4())
 
 	# start K8s job
-	def prehook(self,cores=None,mpi=1,omp=1,gpus=0,gputype='mig-1g.10gb',mem=4):
+	def prehook(self,cores=None,mpi=1,omp=1,gpus=0,gputype='mig-1g.10gb',mem=4,retry=1):
 		if cores is not None and cores != mpi * omp:
 			raise ValueError(f'cores ({cores}) != mpi ({mpi}) * omp ({omp})')
 		if cores is None:
@@ -94,7 +94,8 @@ spec:
 			y.write(job)
 			y.flush()
 			os.system(f'kubectl apply -f {y.name}')
-			os.system(f'kubectl wait --for=condition=ready pod -l job={self.jobname}')
+			for _ in range(retry):
+				os.system(f'kubectl wait --for=condition=ready pod -l job={self.jobname}')
 
 
 
