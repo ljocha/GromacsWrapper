@@ -11,7 +11,7 @@ class MDrunnerK8s(MDrunner):
 	mdrun = 'gmx mdrun'
 	mpiexec = 'mpiexec'
 
-	def __init__(self,pvc=None,workdir=None,image='cerit.io/ljocha/gromacs:2023-2-plumed-2-9-afed-pytorch-model-cv-2',**kwargs):
+	def __init__(self,pvc=None,workdir=None,image='cerit.io/ljocha/gromacs:2024-3-plumed-2-10-afed-pytorch-model-cv-2',**kwargs):
 		super().__init__(**kwargs)
 		self.image = image
 
