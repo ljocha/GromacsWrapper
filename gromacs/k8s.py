@@ -1,3 +1,4 @@
+#vim: ts=4 expandtab ai:
 from .run import MDrunner
 
 import os
@@ -6,39 +7,54 @@ import re
 import tempfile
 
 class MDrunnerK8s(MDrunner):
-#	mdrun = 'echo Should not reach here, mdrun must be redefined in prehook.'
-#	mdrun = 'sleep 10m'
-	mdrun = 'gmx mdrun'
-	mpiexec = 'mpiexec'
+#    mdrun = 'echo Should not reach here, mdrun must be redefined in prehook.'
+#    mdrun = 'sleep 10m'
+    mdrun = 'gmx mdrun'
+    mpiexec = 'mpiexec'
 
-	def __init__(self,pvc=None,workdir=None,image='cerit.io/ljocha/gromacs:2024-3-plumed-2-10-afed-pytorch-model-cv-2',**kwargs):
-		super().__init__(**kwargs)
-		self.image = image
+    def __init__(self,pvc=None,workdir=None,image='cerit.io/ljocha/gromacs:2024-3-plumed-2-10-afed-pytorch-model-cv-2',**kwargs):
+        super().__init__(**kwargs)
+        self.image = image
+        mnt = ''
 
 # heuristics to find PVC and working dir; can be overriden 
-		if pvc is None:
-			vol,_,_,_,_,mnt = os.popen('df .').readlines()[1].split()
-			pvcid = re.search('pvc-[0-9a-z-]+',vol).group(0)
-			pvc=os.popen(f'kubectl get pvc | grep {pvcid} | cut -f1 -d" "').read().rstrip()
+        if pvc is None:
+            vol,_,_,_,_,mnt = os.popen('df .').readlines()[1].split()
+            pvcid = re.search('pvc-[0-9a-z-]+',vol).group(0)
+            pvc=os.popen(f'kubectl get pvc | grep {pvcid} | cut -f1 -d" "').read().rstrip()
 
-			if workdir is None:
-				workdir = os.path.relpath(os.getcwd(),mnt)
+            if workdir is None:
+                workdir = os.path.relpath(os.getcwd(),mnt)
+                print(f'mnt = {mnt}, workdir = {workdir}')
 
-		if workdir is None:
-			workdir = ''
+        if workdir is None:
+            workdir = ''
 
-		self.workdir = workdir
-		self.pvc = pvc
-		self.jobname = "gmx-" + str(uuid.uuid4())
+        self.workdir = workdir
+        self.pvc = pvc
+        self.mnt = mnt
+        self.jobname = "gmx-" + str(uuid.uuid4())
 
-	# start K8s job
-	def prehook(self,cores=None,mpi=1,omp=1,gpus=0,gputype='mig-1g.10gb',mem=4,retry=1):
-		if cores is not None and cores != mpi * omp:
-			raise ValueError(f'cores ({cores}) != mpi ({mpi}) * omp ({omp})')
-		if cores is None:
-			cores = mpi * omp
+        with open(f'{self.mnt}/{self.workdir}/{self.jobname}.sh','w') as script:
+            script.write(f'''#!/bin/bash
 
-		job = f"""\
+while [ ! -f {self.jobname}.cmd ]; do
+    sleep 1
+done
+
+exec >{self.jobname}.out 2>{self.jobname}.out
+exec $(cat {self.jobname}.cmd)
+''')
+        os.chmod(f'{self.mnt}/{self.workdir}/{self.jobname}.sh',0o755)
+
+    # start K8s job
+    def prehook(self,cores=None,mpi=1,omp=1,gpus=0,gputype='mig-1g.10gb',mem=4,retry=1):
+        if cores is not None and cores != mpi * omp:
+            raise ValueError(f'cores ({cores}) != mpi ({mpi}) * omp ({omp})')
+        if cores is None:
+            cores = mpi * omp
+
+        job = f"""\
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -56,8 +72,7 @@ spec:
         image: {self.image}
         workingDir: /mnt/{self.workdir}
         command: 
-        - sleep
-        - 365d
+        - /mnt/{self.workdir}/{self.jobname}.sh
         securityContext:
           runAsUser: 1000
           runAsGroup: 1000
@@ -90,18 +105,34 @@ spec:
         persistentVolumeClaim:
           claimName: {self.pvc}
 """
-		with tempfile.NamedTemporaryFile('w+') as y:
-			y.write(job)
-			y.flush()
-			os.system(f'kubectl apply -f {y.name}')
-			for _ in range(retry):
-				os.system(f'kubectl wait --for=condition=ready pod -l job={self.jobname}')
+        with tempfile.NamedTemporaryFile('w+') as y:
+            y.write(job)
+            y.flush()
+            os.system(f'kubectl apply -f {y.name}')
+            for _ in range(retry):
+                os.system(f'kubectl wait --for=condition=ready pod -l job={self.jobname}')
 
 
 
-	# cleanup the K8s job
-	def posthook(self):
-		os.system(f'kubectl delete job/{self.jobname}')
+    # cleanup the K8s job
+    def posthook(self):
+#        os.system(f'kubectl delete job/{self.jobname}')
+        os.remove(f'{self.mnt}/{self.workdir}/{self.jobname}.sh')
+        os.remove(f'{self.mnt}/{self.workdir}/{self.jobname}.cmd')
+#        os.remove(f'{os.getcwd()}/{self.workdir}/{self.jobname}.out')
 
-	def commandline(self, **kwargs):
-		return ['kubectl','exec','-ti',f'job/{self.jobname}','--'] + super().commandline(**kwargs)
+    def commandline(self, **kwargs):
+#        return ['kubectl','exec','-ti',f'job/{self.jobname}','--'] + super().commandline(**kwargs)
+        with open(f'{self.mnt}/{self.workdir}/{self.jobname}.tmp','w') as cmd:
+            cmd.write(" ".join(super().commandline(**kwargs)))
+
+        os.rename(f'{self.mnt}/{self.workdir}/{self.jobname}.tmp',f'{self.mnt}/{self.workdir}/{self.jobname}.cmd')
+        return [ 'tail', '-f', f'{self.mnt}/{self.workdir}/{self.jobname}.out' ]
+
+    def kill(self):
+        os.system(f'kubectl delete job/{self.jobname}')
+        
+    def log(self):
+        with open(f'{self.mnt}/{self.workdir}/{self.jobname}.out') as log:
+            for l in log:
+                print(l,end='')
