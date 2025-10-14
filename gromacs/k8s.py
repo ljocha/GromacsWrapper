@@ -151,8 +151,16 @@ spec:
 
 
     def kill(self):
-        os.remove(f'{self.mnt}/{self.workdir}/{self.jobname}.sh')
-        os.remove(f'{self.mnt}/{self.workdir}/{self.jobname}.cmd')
+        try:
+            os.remove(f'{self.mnt}/{self.workdir}/{self.jobname}.sh')
+        except FileNotFoundError:
+            pass
+
+        try:
+            os.remove(f'{self.mnt}/{self.workdir}/{self.jobname}.cmd')
+        except FileNotFoundError:
+            pass
+
         os.system(f'kubectl delete job/{self.jobname}')
         
     def log(self,tail=0):
