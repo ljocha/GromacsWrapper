@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         gromacs-version: ["2023.1"]
         # Test other GROMACS versions selectively on a recent Python.
         # On macOS only test one GROMACS version and two Python versions
@@ -50,28 +50,36 @@ jobs:
           - os: ubuntu-latest
             python-version: "3.11"
             gromacs-version: "2022.4"
-          # explicitly include a few macOS runners: MUST use 2018.6:
-          # (conda-forge GROMACS >= 2021 is compiled to use rdtscp CPU instruction but these
-          # are not available in the macOS GitHub runner so we need to use a different GROMACS
-          # version. 2018.5 from bioconda works. (2021.5 worked previously but not anymore.)
-          # Locally 2023.1 was successfully tested on Intel macOS 13.5.)
+          - os: ubuntu-latest
+            python-version: "3.11"
+            gromacs-version: "2023.4"       
+          - os: ubuntu-latest
+            python-version: "3.11"
+            gromacs-version: "2024.2"
+          # explicitly include a few macOS runners; finding a version that works
+          # on the GH runners is tricky (eg some are compiled for rdtscp CPU instructions
+          # that are not available); 2018.6 (bioconda) worked for a while, but then stopped
+          # being resolved. 2024.2 (conda-forge) runs at the moment
           - os: macOS-latest
             python-version: "3.11"
-            gromacs-version: "2018.6"
+            gromacs-version: "2024.2"
           - os: macOS-latest
             python-version: "3.12"
-            gromacs-version: "2018.6"
-            
+            gromacs-version: "2024.2"
+
 
     env:
       MPLBACKEND: agg
         
 
     steps:
-    - uses: actions/checkout@v3
+    - name: git checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-tags: true
 
     - name: micromamba package and testing environment installation (Python ${{ matrix.python-version }}, GROMACS ${{ matrix.gromacs-version }})
-      uses: mamba-org/setup-micromamba@v1
+      uses: mamba-org/setup-micromamba@v2
       with:
         environment-file: ci/conda-envs/test_env.yaml
         condarc: |
@@ -82,7 +90,7 @@ jobs:
         cache-downloads: true
         cache-environment: true
         create-args: >-
-           python=${{ matrix.python-version }}.*=*_cpython
+           python=${{ matrix.python-version }}.*=*_cp*
            gromacs==${{ matrix.gromacs-version }}
 
     - name: Python version information ${{ matrix.python-version }}
@@ -94,21 +102,33 @@ jobs:
          micromamba info
          micromamba list
          cat /proc/cpuinfo || (/usr/sbin/system_profiler SPHardwareDataType; /usr/sbin/sysctl -a | grep machdep.cpu)
-         micromamba list | grep gromacs | grep ${{ matrix.gromacs-version }}
          micromamba list | grep python | grep ${{ matrix.python-version }}
 
     - name: Install package (with no dependencies)
       run: |
-        python -m pip install --no-deps .
+        python -m pip install --no-deps -e .
 
     - name: Run tests
+      run: >-
+        pytest -v
+        --disable-pytest-warnings
+        --durations=20
+        --low-performance
+        --cov-config=pyproject.toml
+        --cov="./gromacs"
+        --cov-report=xml
+        --cov-report=term
+        --color=yes
+        ./tests
+
+    - name: Coverage report
       run: |
-        pytest -v --disable-pytest-warnings --durations=20 --low-performance --cov=gromacs --cov-report=xml --color=yes ./tests
+        coverage report --show-missing
 
     - name: Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         name: codecov-${{ matrix.os }}-py${{ matrix.python-version }}
-        file: ./coverage.xml
+        files: ./coverage.xml
         fail_ci_if_error: false

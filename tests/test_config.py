@@ -3,17 +3,12 @@
 # Released under the GNU Public License 3 (or higher, your choice)
 # See the file COPYING for details.
 
-from __future__ import division, absolute_import, print_function
-
 import contextlib
 import os
 import errno
 import sys
 
-if sys.version_info[0] < 3:
-    from ConfigParser import NoOptionError, NoSectionError
-else:
-    from configparser import NoOptionError, NoSectionError
+from configparser import NoOptionError, NoSectionError
 
 import pytest
 
@@ -38,7 +33,9 @@ def GMXRC():
     bindir = os.path.dirname(path)
     GMXRC = os.path.join(bindir, "GMXRC")
     if not os.path.exists(GMXRC):
-        raise IOError(errno.ENOENT, "Could not find Gromacs setup file", GMXRC)
+        # return None if GMXRC is not available so that we can skip the test
+        # (needed for test in deployment workflow)
+        return None
     return GMXRC
 
 
@@ -54,6 +51,8 @@ def temp_environ():
 
 def test_set_gmxrc_environment(GMXRC):
     # not threadsafe: function modifies the global process environment
+    if GMXRC is None:
+        pytest.skip("GMXRC not available (GROMACS may still be installed)")
 
     gmx_envvars = (
         "GMXBIN",

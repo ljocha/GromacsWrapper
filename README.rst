@@ -11,8 +11,8 @@
 
 A primitive Python wrapper around the Gromacs_ tools. The library is
 tested with GROMACS 4.6.5, 2018.x, 2019.x, 2020.x, 2021.x, 2022.x,
-2023.x (and 5.x and 2016.x should also work). It supports Python
-3.8--3.12 on Linux and macOS.
+2023.x, 2024.x (and 5.x and 2016.x should also work). It supports
+Python 3.9--3.13 on Linux and macOS.
 
 GromacsWrapper also provides a small library (cook book) of often-used
 recipes and helper functions to set up MD simulations.
@@ -22,9 +22,9 @@ available at https://gromacswrapper.readthedocs.org for recent releases.
 
 The source code is available in the `GromacsWrapper git repository`_.
 
-Please be aware that this is **beta** software that most definitely
-contains bugs. It is *your* responsibility to ensure that you are
-running simulations with sensible parameters.
+Please be aware that this software is only minimally maintained and it
+most definitely contains bugs. It is *your* responsibility to ensure
+that you are running simulations with sensible parameters.
 
 .. _Gromacs: http://www.gromacs.org
 .. _Documentation: 
@@ -34,10 +34,9 @@ running simulations with sensible parameters.
 .. |build| image:: https://github.com/Becksteinlab/GromacsWrapper/actions/workflows/ci.yaml/badge.svg?branch=main
    :target: https://github.com/Becksteinlab/GromacsWrapper/actions/workflows/ci.yaml
    :alt: Build Status	     
-.. |cov| image:: https://codecov.io/gh/Becksteinlab/GromacsWrapper/badge.svg
+.. |cov| image:: https://codecov.io/gh/Becksteinlab/GromacsWrapper/graph/badge.svg?token=LvbLZ49wxN
    :target: https://codecov.io/gh/Becksteinlab/GromacsWrapper
    :alt: Code Coverage
-   :scale: 100%
 .. |zenodo| image:: https://zenodo.org/badge/13219/Becksteinlab/GromacsWrapper.svg
    :target: https://zenodo.org/badge/latestdoi/13219/Becksteinlab/GromacsWrapper
    :alt: Latest release on zenodo (with DOI)
@@ -165,7 +164,7 @@ your own development::
 Questions
 =========
 
-Please ask questions in the `Issue Tracker`_ (instead of private email).
+Please ask questions in the `Discussion forum`_ (instead of private email).
 
 
 Reporting Bugs and Contributing to GromacsWrapper
